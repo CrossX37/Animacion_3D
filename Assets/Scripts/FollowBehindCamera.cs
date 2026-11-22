@@ -1,4 +1,4 @@
-
+using UnityEngine.InputSystem;
 using UnityEngine;
 
 public class FollowBehindCamera : MonoBehaviour
@@ -18,11 +18,23 @@ public class FollowBehindCamera : MonoBehaviour
 
     private float velocidadY;
 
+    [Header("Rotacion manual de camara")]
+    public float velocidadGiro = 100f;
+
+    [Header("Direccion inicial de camara")]
+    private float anguloInicial = 90f;
+    private float anguloCamara;
+
     void Start()
     {
+        anguloCamara = anguloInicial;
+
         if (target == null) return;
 
-        transform.position = target.position + offset;
+        transform.position =
+            target.position +
+            Quaternion.Euler(0f, anguloCamara, 0f) * offset;
+
         transform.LookAt(
             target.position + Vector3.up * alturaMirada
         );
@@ -32,8 +44,17 @@ public class FollowBehindCamera : MonoBehaviour
     {
         if (target == null) return;
 
+        if (Keyboard.current != null)
+{
+    if (Keyboard.current.leftArrowKey.isPressed)
+        anguloCamara -= velocidadGiro * Time.deltaTime;
+
+    if (Keyboard.current.rightArrowKey.isPressed)
+        anguloCamara += velocidadGiro * Time.deltaTime;
+}
+
         // Posicion independiente del giro de Bonny
-        Vector3 posicionDeseada = target.position + offset;
+        Vector3 posicionDeseada = target.position + Quaternion.Euler(0f, anguloCamara, 0f) * offset;
 
         // Seguimiento inmediato horizontal:
         // evita retraso y alejamiento durante sprint
