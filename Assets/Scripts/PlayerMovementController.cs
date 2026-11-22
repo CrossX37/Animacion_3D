@@ -16,6 +16,7 @@ public class PlayerMovementController : MonoBehaviour
     // Referencias internas
     private CharacterController _controller;
     private Animator _animator;
+    [SerializeField] private Animator animatorBonny;
     private Transform _cameraTransform;
 
     // Acciones del New Input System
@@ -36,7 +37,7 @@ public class PlayerMovementController : MonoBehaviour
     private void Awake()
     {
         _controller = GetComponent<CharacterController>();
-        _animator = GetComponentInChildren<Animator>(); // Busca el Animator en el objeto o sus hijos
+        _animator = animatorBonny;
 
         if (Camera.main != null)
             _cameraTransform = Camera.main.transform;
@@ -81,9 +82,7 @@ public class PlayerMovementController : MonoBehaviour
     {
         bool isGrounded = _controller.isGrounded;
 
-        // Informamos al Animator si el personaje está tocando el suelo
-        if (_animator != null)
-            _animator.SetBool(AnimEnSuelo, isGrounded);
+      
 
         if (isGrounded && _verticalVelocity.y < 0f)
         {
@@ -110,11 +109,7 @@ public class PlayerMovementController : MonoBehaviour
         bool isMoving = direction.magnitude >= 0.1f;
         bool isSprinting = _sprintAction.IsPressed() && isMoving;
 
-        if (_animator != null)
-        {
-            _animator.SetBool(AnimCaminado, isMoving && !isSprinting);
-            _animator.SetBool(AnimCorrer, isSprinting);
-        }
+        
 
         float targetSpeed = isSprinting ? sprintSpeed : walkSpeed;
         Vector3 horizontalMovement = Vector3.zero;
@@ -133,5 +128,26 @@ public class PlayerMovementController : MonoBehaviour
 
         Vector3 finalVelocity = horizontalMovement + _verticalVelocity;
         _controller.Move(finalVelocity * Time.deltaTime);
+
+        bool enSueloAhora = _controller.isGrounded;
+
+        if (_animator != null)
+        {
+            _animator.SetBool(
+                AnimEnSuelo,
+                enSueloAhora
+            );
+
+            _animator.SetBool(
+                AnimCaminado,
+                enSueloAhora && isMoving && !isSprinting
+            );
+
+            _animator.SetBool(
+                AnimCorrer,
+                enSueloAhora && isSprinting
+            );
+        }
+
     }
 }
