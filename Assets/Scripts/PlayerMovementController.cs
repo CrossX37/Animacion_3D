@@ -7,7 +7,12 @@ public class PlayerMovementController : MonoBehaviour
     [Header("Velocidades de Movimiento")]
     [SerializeField] private float walkSpeed = 5f;
     [SerializeField] private float sprintSpeed = 9f;
+    [SerializeField] private float crouchSpeed = 2.5f;
     [SerializeField] private float rotationSmoothTime = 0.1f;
+
+    [Header("Agacharse")]
+    [SerializeField] private float crouchHeight = 1.0f;
+    [SerializeField] private float heightTransitionSpeed = 12f;
 
     [Header("Físicas de Salto y Gravedad")]
     [SerializeField] private float jumpHeight = 1.5f;
@@ -23,21 +28,29 @@ public class PlayerMovementController : MonoBehaviour
     private InputAction _moveAction;
     private InputAction _jumpAction;
     private InputAction _sprintAction;
+    private InputAction _crouchAction;
 
     // Variables de estado
     private Vector3 _verticalVelocity;
     private float _currentTurnVelocity;
+    private float _standingHeight;
+    private Vector3 _standingCenter;
+    private bool _isCrouching;
 
     // Hashes de animación para mayor rendimiento
     private static readonly int AnimCaminado = Animator.StringToHash("Caminado");
     private static readonly int AnimCorrer = Animator.StringToHash("Correr");
     private static readonly int AnimSaltar = Animator.StringToHash("Saltar");
     private static readonly int AnimEnSuelo = Animator.StringToHash("EnSuelo");
+    private static readonly int AnimAgachado = Animator.StringToHash("Agachado");
 
     private void Awake()
     {
         _controller = GetComponent<CharacterController>();
         _animator = animatorBonny;
+
+        _standingHeight = _controller.height;
+        _standingCenter = _controller.center;
 
         if (Camera.main != null)
             _cameraTransform = Camera.main.transform;
@@ -56,6 +69,7 @@ public class PlayerMovementController : MonoBehaviour
 
         _jumpAction = new InputAction("Jump", InputActionType.Button, "<Keyboard>/space");
         _sprintAction = new InputAction("Sprint", InputActionType.Button, "<Keyboard>/leftShift");
+        _crouchAction = new InputAction("Crouch", InputActionType.Button, "<Keyboard>/leftCtrl");
     }
 
     private void OnEnable()
@@ -63,6 +77,7 @@ public class PlayerMovementController : MonoBehaviour
         _moveAction.Enable();
         _jumpAction.Enable();
         _sprintAction.Enable();
+        _crouchAction.Enable();
     }
 
     private void OnDisable()
@@ -70,30 +85,44 @@ public class PlayerMovementController : MonoBehaviour
         _moveAction.Disable();
         _jumpAction.Disable();
         _sprintAction.Disable();
+        _crouchAction.Disable();
     }
 
     private void Update()
     {
+        HandleCrouchState();
         HandleGravityAndJump();
         HandleMovement();
+    }
+
+    private void HandleCrouchState()
+    {
+        // Mantener presionado Left Ctrl para agacharse; no permite agacharse en el aire
+        _isCrouching = _crouchAction.IsPressed() && _controller.isGrounded;
+
+        float targetHeight = _isCrouching ? crouchHeight : _standingHeight;
+        _controller.height = Mathf.Lerp(_controller.height, targetHeight, heightTransitionSpeed * Time.deltaTime);
+
+        // Ajusta el centro vertical para que la base del CharacterController no flote ni se hunda
+        float heightDifference = _standingHeight - _controller.height;
+        Vector3 targetCenter = _standingCenter - new Vector3(0f, heightDifference * 0.5f, 0f);
+        _controller.center = targetCenter;
     }
 
     private void HandleGravityAndJump()
     {
         bool isGrounded = _controller.isGrounded;
 
-      
-
         if (isGrounded && _verticalVelocity.y < 0f)
         {
             _verticalVelocity.y = -2f;
         }
 
-        if (_jumpAction.WasPressedThisFrame() && isGrounded)
+        // Evita saltar mientras está agachado
+        if (_jumpAction.WasPressedThisFrame() && isGrounded && !_isCrouching)
         {
             _verticalVelocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
 
-            // Disparamos la animación de salto al instante
             if (_animator != null)
                 _animator.SetTrigger(AnimSaltar);
         }
@@ -107,11 +136,12 @@ public class PlayerMovementController : MonoBehaviour
         Vector3 direction = new Vector3(input.x, 0f, input.y).normalized;
 
         bool isMoving = direction.magnitude >= 0.1f;
-        bool isSprinting = _sprintAction.IsPressed() && isMoving;
+        bool isSprinting = _sprintAction.IsPressed() && isMoving && !_isCrouching;
 
-        
+        float targetSpeed = _isCrouching
+            ? crouchSpeed
+            : (isSprinting ? sprintSpeed : walkSpeed);
 
-        float targetSpeed = isSprinting ? sprintSpeed : walkSpeed;
         Vector3 horizontalMovement = Vector3.zero;
 
         if (isMoving)
@@ -133,21 +163,10 @@ public class PlayerMovementController : MonoBehaviour
 
         if (_animator != null)
         {
-            _animator.SetBool(
-                AnimEnSuelo,
-                enSueloAhora
-            );
-
-            _animator.SetBool(
-                AnimCaminado,
-                enSueloAhora && isMoving && !isSprinting
-            );
-
-            _animator.SetBool(
-                AnimCorrer,
-                enSueloAhora && isSprinting
-            );
+            _animator.SetBool(AnimEnSuelo, enSueloAhora);
+            _animator.SetBool(AnimAgachado, _isCrouching);
+            _animator.SetBool(AnimCaminado, enSueloAhora && isMoving && !isSprinting && !_isCrouching);
+            _animator.SetBool(AnimCorrer, enSueloAhora && isSprinting);
         }
-
     }
 }
