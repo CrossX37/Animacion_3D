@@ -97,16 +97,13 @@ public class PlayerMovementController : MonoBehaviour
 
     private void HandleCrouchState()
     {
-        // Mantener presionado Left Ctrl para agacharse; no permite agacharse en el aire
         _isCrouching = _crouchAction.IsPressed() && _controller.isGrounded;
 
         float targetHeight = _isCrouching ? crouchHeight : _standingHeight;
         _controller.height = Mathf.Lerp(_controller.height, targetHeight, heightTransitionSpeed * Time.deltaTime);
 
-        // Ajusta el centro vertical para que la base del CharacterController no flote ni se hunda
         float heightDifference = _standingHeight - _controller.height;
-        Vector3 targetCenter = _standingCenter - new Vector3(0f, heightDifference * 0.5f, 0f);
-        _controller.center = targetCenter;
+        _controller.center = _standingCenter - new Vector3(0f, heightDifference * 0.5f, 0f);
     }
 
     private void HandleGravityAndJump()
@@ -118,7 +115,6 @@ public class PlayerMovementController : MonoBehaviour
             _verticalVelocity.y = -2f;
         }
 
-        // Evita saltar mientras está agachado
         if (_jumpAction.WasPressedThisFrame() && isGrounded && !_isCrouching)
         {
             _verticalVelocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
@@ -165,7 +161,7 @@ public class PlayerMovementController : MonoBehaviour
         {
             _animator.SetBool(AnimEnSuelo, enSueloAhora);
             _animator.SetBool(AnimAgachado, _isCrouching);
-            _animator.SetBool(AnimCaminado, enSueloAhora && isMoving && !isSprinting && !_isCrouching);
+            _animator.SetBool(AnimCaminado, enSueloAhora && isMoving && !isSprinting);
             _animator.SetBool(AnimCorrer, enSueloAhora && isSprinting);
         }
     }
